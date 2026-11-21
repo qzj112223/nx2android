@@ -25,6 +25,7 @@ def _parser():
     po.add_argument('--package', default='', help="the app's package instead of the profile's (a test install beside another build of the game)")
     po.add_argument('--native-keyboard', action='store_true', help='use the Android Unicode keyboard (requires JDK and Android SDK platform/build-tools)')
     po.add_argument('--external-display', action='store_true', help='build the external-screen gamepad activity (requires Android SDK platform and build-tools)')
+    po.add_argument('--data-import', action='store_true', help='a Java launcher: free-use notice on the first run, then the data-pack ZIP imported where the player picks it (requires javac and an Android SDK)')
     po.add_argument('--fps60', action='store_true', help='60 fps: the profile\'s own frame-rate cap, else the community\'s FPSLocker-Warehouse config of the game\'s build, fetched from GitHub')
     po.add_argument('--touch', action='store_true',
                     help='a game played by touch: the on-screen gamepad starts hidden, so every touch but the menu button\'s goes to the game (the pause menu shows it again; '
