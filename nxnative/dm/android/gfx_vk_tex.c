@@ -572,19 +572,21 @@ static int cpu_content_tex(const tex_t *t, const vkfmt_t *f) {
     static int on = -1; if (on < 0) { const char *e = getenv("DM_NVN_STORAGE_FIRST_USE"); on = !e || atoi(e) != 0; }
     if (!on || !t->pool || t->has_layout || t->d.samples > 1) return 0;
     if (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) return 0;
+    // A BC format decoded on the CPU (f->dec != 0, f->compressed == 0) is still block-compressed in guest memory.
+    int guest_comp = f->compressed || f->dec;
     // COMPRESSIBLE leaves out what the GPU may render into, which a block-compressed format never is: there the flag says nothing about who wrote the storage. With the
     // profile's tex_cpu_uncached it does not leave such a texture out: Cardfight!! Vanguard Dear Days 2 sets the flag on every texture and copies its BC7 font arrays
     // (1024x1024, 4 to 18 layers) into CPU-uncached pools with no flush; left out, they were images of zeros and no text was drawn anywhere
-    if (t->d.flags & ((DM_GAME_TEX_CPU_UNCACHED && f->compressed ? 0 : NVN_TEXTURE_FLAGS_COMPRESSIBLE) | NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET | NVN_TEXTURE_FLAGS_SPARSE)) return 0;
+    if (t->d.flags & ((DM_GAME_TEX_CPU_UNCACHED && guest_comp ? 0 : NVN_TEXTURE_FLAGS_COMPRESSIBLE) | NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET | NVN_TEXTURE_FLAGS_SPARSE)) return 0;
     // IMAGE (a render target or storage image) does not exclude a compressed texture: BC and ASTC are neither, so its bytes at first use are the CPU's.
-    if (!f->compressed && (t->d.flags & NVN_TEXTURE_FLAGS_IMAGE)) return 0;
+    if (!guest_comp && (t->d.flags & NVN_TEXTURE_FLAGS_IMAGE)) return 0;
     // CPU-filled 2D tables need the same first upload as compressed/3D textures. NieR's
     // 256x16 RGBA8 LUT had 16,384 nonzero storage bytes but an all-black GPU image; its
     // final colour pass consequently erased an otherwise correct title image.
     // Off unless the profile sets DM_NVN_CPU_TEX2D_FIRST_USE=1: the alias walk and a wrong upload over render-target content stay out of other games.
     static int tex2d = -1; if (tex2d < 0) { const char *e = getenv("DM_NVN_CPU_TEX2D_FIRST_USE"); tex2d = e && atoi(e) != 0; }
-    if (!f->compressed && t->d.target != 2 && !tex2d) return 0;
-    if (!f->compressed && t->d.target != 2 &&
+    if (!guest_comp && t->d.target != 2 && !tex2d) return 0;
+    if (!guest_comp && t->d.target != 2 &&
         (f->depth || f->stencil || (t->pool->flags & NVN_MEMORY_POOL_FLAGS_CPU_NO_ACCESS) ||
          (t->d.flags & (NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE)) || cpu_storage_gpu_written(t))) return 0;
     if (!mem_any(t->mem, t->L.size)) return 0;
